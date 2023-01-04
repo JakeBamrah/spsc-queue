@@ -93,10 +93,11 @@ public:
     T* peek()
     {
         Node<T>* current_head = head.load();
-        if (current_head == tail.load())
+        Node<T>* next_node = current_head->next;
+        if (current_head == tail.load() || next_node == nullptr)
             return nullptr;
 
-        return current_head->value;
+        return &next_node->value;
     };
 
     bool try_dequeue(T& result)
