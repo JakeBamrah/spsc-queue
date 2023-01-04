@@ -57,6 +57,7 @@ public:
 
     ~NonBlockingQueue()
     {
+        // queue should not be accessed once destructor has been called
         auto current_head = head.load();
         while (current_head->next != nullptr)
         {
@@ -71,6 +72,9 @@ public:
         return tail.load() == head.load();
     };
 
+    /*
+     * Producer method: Enqueues a value as a node onto the back of the queue.
+     */
     void enqueue(const T value)
     {
         Node<T>* current_tail = tail.load();
@@ -82,13 +86,13 @@ public:
             p->modification_counter = current_tail->modification_counter + 1;
         }
 
-        // TODO: Race? What if current_tail is consumed before pointing tail.next
+        // TODO: Race? What if current_tail is consumed before assigning tail.next
         current_tail->next = p;
     };
 
     /*
-     * Consumer method: Returns front element of the queue without dequeueing
-     * it—returns a nullptr if queue is already empty.
+     * Consumer method: Returns a pointer to the element belonging to the queue
+     * head-node without dequeueing it—returns a nullptr if queue is empty.
      */
     T* peek()
     {
@@ -141,15 +145,18 @@ public:
     };
 
     /*
-     * Dequeueing retains a value once a node has been removed from the queue.
-     * Pop should be utilized when the node value does not need to be retained
-     * on dequeue.
+     * Consumer method: Dequeues a node from the front of the queue (head) and
+     * returns the value stored in the dequeued node.
      */
     bool dequeue(T& result)
     {
         return try_dequeue(result);
     };
 
+    /*
+     * Consumer method: Dequeues a node from the front of the queue (head) but
+     * does *not* return the value stored in the dequeued node.
+     */
     bool pop()
     {
         // HACK: Needlessley create reference to avoid duplicating dequeue logic
