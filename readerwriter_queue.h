@@ -1,6 +1,6 @@
+#include <atomic>
 #include <cstdint>
 #include <iostream>
-#include <atomic>
 #include <optional>
 
 
