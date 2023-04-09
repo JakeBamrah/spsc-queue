@@ -1,0 +1,5 @@
+cmake -S . -B build
+cmake --build build
+echo "symlink compile commands 'ln -s $(pwd)/build/compile_commands.json $(pwd)'"
+echo "running tests"
+(cd build/ && ctest)

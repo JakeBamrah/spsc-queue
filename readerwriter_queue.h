@@ -1,3 +1,14 @@
+/* This is an implementaion for an unbounded SPSC lock-free queue based on the
+   work of M.Maged and M.Scott (https://doi.org/10.1145/248052.248106).
+
+   A lock-free single-producer, single-consumer queue. Queue head is always
+   represented by a dummy-node where each node uses a modification counter that
+   is incremented during CAS exchanges. This reduces the likelihood of the ABA
+   problem during enqueue / dequeuing.
+
+   HEAD(DUMMY)                          TAIL
+   [value<T>, next*, counter] -> ... -> [value<T>, next*, counter] */
+
 #include <atomic>
 #include <cstdint>
 #include <iostream>
@@ -19,16 +30,6 @@ public:
 };
 
 
-/* This is an implementaion for an unbounded SPSC lock-free queue based on the
-   work of M.Maged and M.Scott (https://doi.org/10.1145/248052.248106).
-
-   A lock-free single-producer, single-consumer queue. Queue head is always
-   represented by a dummy-node where each node uses a modification counter that
-   is incremented during CAS exchanges. This reduces the likelihood of the ABA
-   problem during enqueue / dequeuing.
-
-   HEAD(DUMMY)                          TAIL
-   [value<T>, next*, counter] -> ... -> [value<T>, next*, counter] */
 template<typename T>
 class NonBlockingQueue {
 public:
@@ -57,7 +58,7 @@ public:
         return _tail.load() == _head.load();
     }
 
-    /* Producer method: Enqueues a node (value) onto the back of the queue. */
+    /* PRODUCER METHOD: Enqueues a node (value) onto the back of the queue. */
     void enqueue(const T value)
     {
         Node<T>* current_tail = _tail.load();
@@ -73,8 +74,7 @@ public:
         current_tail->next = p;
     }
 
-     /* Consumer method: Returns a pointer to the element belonging to the queue
-        head-node without dequeueing it—returns a nullptr if queue is empty. */
+     /* CONSUMER METHOD: Returns a pointer to the head *without* dequeuing it */
     T* peek()
     {
         Node<T>* current_head   = _head.load();
@@ -125,14 +125,13 @@ public:
         }
     }
 
-     /* Consumer method: Dequeues a node from the front of the queue (head) and
-        returns the value stored in the dequeued node. */
+     /* CONSUMER METHOD: Dequeues and returns the value from the head node */
     bool dequeue(T& result)
     {
         return try_dequeue(result);
     }
 
-     /* Consumer method: Dequeues a node from the front of the queue (head) but
+     /* CONSUMER METHOD: Dequeues a node from the front of the queue (head) but
         does *not* return the value stored in the dequeued node. */
     bool pop()
     {

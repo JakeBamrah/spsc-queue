@@ -21,7 +21,7 @@ enable_testing()
 
 add_executable(
   unittests
-  tests/unittests.cc
+  unittests/readerwriter_queue.cc
 )
 target_link_libraries(
   unittests

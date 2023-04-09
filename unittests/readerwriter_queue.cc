@@ -4,14 +4,14 @@
 #include "../readerwriter_queue.h"
 
 
-TEST(QueueTest, TestInitialize)
+TEST(NonBlockingQueueTest, TestInitialize)
 {
     NonBlockingQueue<int> q;
     ASSERT_TRUE(q.is_empty());
     ASSERT_EQ(q.peek(), nullptr);
 }
 
-TEST(QueueTest, TestEnqueue)
+TEST(NonBlockingQueueTest, TestEnqueue)
 {
     NonBlockingQueue<int> q;
     q.enqueue(5);
@@ -19,7 +19,7 @@ TEST(QueueTest, TestEnqueue)
     ASSERT_FALSE(q.is_empty());
 }
 
-TEST(QueueTest, TestEnqueueMany)
+TEST(NonBlockingQueueTest, TestEnqueueMany)
 {
     NonBlockingQueue<int> q;
     for (int i=0; i < 100; i++) {
@@ -33,7 +33,7 @@ TEST(QueueTest, TestEnqueueMany)
     }
 }
 
-TEST(QueueTest, TestDequeue)
+TEST(NonBlockingQueueTest, TestDequeue)
 {
     NonBlockingQueue<int> q;
     int item;
@@ -45,7 +45,22 @@ TEST(QueueTest, TestDequeue)
     ASSERT_TRUE(q.is_empty());
 }
 
-TEST(QueueTest, TestPop)
+TEST(NonBlockingQueueTest, TestExcessDequeue)
+{
+    NonBlockingQueue<int> q;
+    for (int i=0; i < 100; i++) {
+        q.enqueue(i);
+    }
+
+    int item;
+    for (int i=0; i < 101; i++) { // try to dequeue when queue is empty
+        q.dequeue(item);
+    }
+
+    ASSERT_TRUE(q.is_empty());
+}
+
+TEST(NonBlockingQueueTest, TestPop)
 {
     NonBlockingQueue<int> q;
     for (int i=0; i < 100; i++) {
@@ -60,7 +75,7 @@ TEST(QueueTest, TestPop)
     ASSERT_TRUE(q.is_empty());
 }
 
-TEST(QueueTest, TestPeek)
+TEST(NonBlockingQueueTest, TestPeek)
 {
     NonBlockingQueue<int> q;
     for (int i=0; i < 100; i++) {
@@ -77,7 +92,7 @@ TEST(QueueTest, TestPeek)
     }
 }
 
-TEST(QueueTest, TestThreading)
+TEST(NonBlockingQueueTest, TestThreading)
 {
     // TODO: figure out why test can't be ran concurrently
     NonBlockingQueue<int> q;
