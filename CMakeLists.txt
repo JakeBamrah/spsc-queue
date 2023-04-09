@@ -22,6 +22,7 @@ enable_testing()
 add_executable(
   unittests
   unittests/readerwriter_queue.cc
+  unittests/circular_buffer.cc
 )
 target_link_libraries(
   unittests
