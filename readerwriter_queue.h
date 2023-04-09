@@ -41,7 +41,7 @@ public:
         _tail.store(dummy);
     }
 
-    ~NonBlockingQueue()
+    virtual ~NonBlockingQueue()
     {
         // queue should not be accessed once destructor has been called
         auto current_head = _head.load();
