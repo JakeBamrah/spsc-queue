@@ -195,6 +195,7 @@ double runBenchmark(BenchmarkType benchmark, double& opsPerIter)
                     queue.dequeue(element);
                 }
             });
+            consumer.join();
 
             std::thread producer([&]() {
                 int num = 0;
@@ -204,9 +205,7 @@ double runBenchmark(BenchmarkType benchmark, double& opsPerIter)
                     ++num;
                 }
             });
-
             producer.join();
-            consumer.join();
             result = getTimeDelta(start);
         } break;
         default:

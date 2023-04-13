@@ -16,27 +16,48 @@
 
 
 template<typename T>
-class Node {
-public:
-    T value;
-    Node<T>* next;
-    int modification_counter{0};
-
-    Node()                      : next{nullptr} {}
-    Node(T val)                 : value{val}, next{nullptr} {}
-    Node(T val, int counter)    : value{val}, modification_counter{counter} {}
-    Node(T val, Node<T>* next, int counter)
-        : value{val}, next{next}, modification_counter{counter} {}
-};
-
+class NodePointer;
 
 template<typename T>
-class NonBlockingQueue {
+class Node
+{
+public:
+    T value;
+    NodePointer<T> next;
+
+    Node()                              : next{NodePointer<T>()} {}
+    Node(T val)                         : value{val}, next{NodePointer<T>()} {}
+    Node(T val, NodePointer<T> next)    : value{val}, next{next} {}
+};
+
+template<typename T>
+struct NodePointer
+{
+    Node<T>* node;
+    size_t mod_counter;
+
+    NodePointer(): node{nullptr}, mod_counter{0} {};
+    NodePointer(Node<T>* n, size_t counter): node{n}, mod_counter{counter} {};
+
+    bool operator==(const NodePointer<T>& other) const
+    {
+        return mod_counter == other.mod_counter && node == other.node;
+    }
+
+    bool operator!=(const NodePointer<T>& other) const
+    {
+        return !(this == other);
+    };
+};
+
+template<typename T>
+class NonBlockingQueue
+{
 public:
     NonBlockingQueue()
     {
         // initialize queue with head and tail as dummy node
-        Node<T>* dummy = new Node<T>;
+        NodePointer<T> dummy = NodePointer<T>{new Node<T>(), 0};
         _head.store(dummy);
         _tail.store(dummy);
     }
@@ -44,12 +65,12 @@ public:
     virtual ~NonBlockingQueue()
     {
         // queue should not be accessed once destructor has been called
-        auto current_head = _head.load();
-        while (current_head->next != nullptr)
+        NodePointer<T> head = _head.load();
+        while (head.node != nullptr)
         {
-            auto old_head   = current_head;
-            current_head    = current_head->next;
-            delete old_head;
+            auto old_head   = head;
+            head            = head.node->next;
+            delete old_head.node;
         }
     }
 
@@ -61,63 +82,59 @@ public:
     /* PRODUCER METHOD: Enqueues a node (value) onto the back of the queue. */
     void enqueue(const T value)
     {
-        Node<T>* current_tail = _tail.load();
-        Node<T>* p = new Node<T>{value, current_tail->modification_counter + 1};
-        while(!_tail.compare_exchange_weak(current_tail, p))
+        NodePointer<T> tail = _tail.load();
+        Node<T>* new_node   = new Node<T>{value};
+        while(!_tail.compare_exchange_weak(tail, NodePointer<T>{
+                    new_node, tail.mod_counter + 1}))
         {
             // exchange failed because tail changed—reload tail and retry
-            current_tail = _tail.load();
-            p->modification_counter = current_tail->modification_counter + 1;
+            tail = _tail.load();
         }
-
-        // TODO: Race? What if current_tail is consumed before assigning tail.next
-        current_tail->next = p;
+        tail.node->next = _tail.load();
     }
 
      /* CONSUMER METHOD: Returns a pointer to the head *without* dequeuing it */
     T* peek()
     {
-        Node<T>* current_head   = _head.load();
-        Node<T>* next_node      = current_head->next;
-        if (current_head == _tail.load() || next_node == nullptr)
+        NodePointer<T> head         = _head.load();
+        NodePointer<T> next_node_p  = head.node->next;
+        if (head == _tail.load() || next_node_p.node == nullptr) {
             return nullptr;
+        }
 
-        return &next_node->value;
+        return &next_node_p.node->value;
     }
 
     bool try_dequeue(T& result)
     {
         while(true)
         {
-            Node<T>* current_head   = _head.load();
-            Node<T>* current_tail   = _tail.load();
-            Node<T>* next_node      = current_head->next;
-            if (_head.load() == current_head)
+            NodePointer<T> head         = _head.load();
+            NodePointer<T> tail         = _tail.load();
+            NodePointer<T> next_node_p  = head.node->next;
+            if (_head.load() == head)
             {
                 // check if queue is empty or tail is lagging behind
-                if (current_head == current_tail)
+                if (head == tail)
                 {
-                    if (next_node == nullptr) {
+                    if (next_node_p.node == nullptr) {
                         return false;
                     }
                     // try to update lagging tail to latest node
-                    _tail.compare_exchange_weak(current_tail, new Node<T>{
-                                next_node->value,
-                                next_node->next,
-                                current_tail->modification_counter + 1});
+                    _tail.compare_exchange_weak(tail, NodePointer<T>{
+                            next_node_p.node, tail.mod_counter + 1});
                 }
-                // queue has valid nodes—attempt dequeue
-                else
+                else // queue has valid nodes—attempt dequeue
                 {
                     // read value before CAS—another dequeue might have occurred
                     // swing next_node to the new head / dummy node
-                    T value = next_node->value;
-                    next_node->modification_counter = current_head->modification_counter + 1; // TODO: modification_counter should be incremented in CAS?
-                    if (_head.compare_exchange_weak(current_head, next_node))
+                    T value = next_node_p.node->value;
+                    if (_head.compare_exchange_weak(head, NodePointer<T>{
+                            next_node_p.node, head.mod_counter + 1}))
                     {
                         // we are free to delete the old head :)
-                        result = value;
-                        delete current_head;
+                        delete head.node;
+                        result = std::move(value);
                         return true;
                     }
                 }
@@ -141,6 +158,6 @@ public:
     }
 
 private:
-    std::atomic<Node<T>*> _head;
-    std::atomic<Node<T>*> _tail;
+    std::atomic<NodePointer<T>> _head;
+    std::atomic<NodePointer<T>> _tail;
 };
