@@ -76,29 +76,30 @@ public:
 
     bool is_empty()
     {
-        return _tail.load() == _head.load();
+        return _tail.load(std::memory_order_acquire) == _head.load(std::memory_order_acquire);
     }
 
     /* PRODUCER METHOD: Enqueues a node (value) onto the back of the queue. */
     void enqueue(const T value)
     {
-        NodePointer<T> tail = _tail.load();
+        // tail owned by consumer and producer so acquire where necessary
+        NodePointer<T> tail = _tail.load(std::memory_order_acquire);
         Node<T>* new_node   = new Node<T>{value};
         while(!_tail.compare_exchange_weak(tail, NodePointer<T>{
                     new_node, tail.mod_counter + 1}))
         {
             // exchange failed because tail changed—reload tail and retry
-            tail = _tail.load();
+            tail = _tail.load(std::memory_order_acquire);
         }
-        tail.node->next = _tail.load();
+        tail.node->next = _tail.load(std::memory_order_acquire);
     }
 
      /* CONSUMER METHOD: Returns a pointer to the head *without* dequeuing it */
     T* peek()
     {
-        NodePointer<T> head         = _head.load();
+        NodePointer<T> head         = _head.load(std::memory_order_acquire);
         NodePointer<T> next_node_p  = head.node->next;
-        if (head == _tail.load() || next_node_p.node == nullptr) {
+        if (head == _tail.load(std::memory_order_acquire) || next_node_p.node == nullptr) {
             return nullptr;
         }
 
@@ -109,10 +110,11 @@ public:
     {
         while(true)
         {
-            NodePointer<T> head         = _head.load();
-            NodePointer<T> tail         = _tail.load();
+            // only the consumer thread interacts with head so we can relax
+            NodePointer<T> head         = _head.load(std::memory_order_relaxed);
+            NodePointer<T> tail         = _tail.load(std::memory_order_acquire);
             NodePointer<T> next_node_p  = head.node->next;
-            if (_head.load() == head)
+            if (_head.load(std::memory_order_relaxed) == head)
             {
                 // check if queue is empty or tail is lagging behind
                 if (head == tail)
