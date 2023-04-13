@@ -12,6 +12,11 @@ Accompanying tests and benchmark harness provided.
 - Bipartite Buffer
 
 
+**Acknowledgements**
+- [1024 Cores](https://www.1024cores.net/)
+- [Cameron's awesome SPSC queue](https://moodycamel.com/blog/2013/a-fast-lock-free-queue-for-c++.htm)
+- [Relacy Race Detector](https://github.com/dvyukov/relacy)
+
 
 
 [^1]: [Simple, fast, and practical non-blocking and blocking concurrent queue algorithms](https://doi.org/10.1145/248052.248106)
