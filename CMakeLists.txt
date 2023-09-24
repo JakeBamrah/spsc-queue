@@ -25,7 +25,7 @@ add_executable(
   unittests/circular_buffer.cc
 )
 target_link_libraries(
-  unittests
+  unittests atomic
   GTest::gtest_main
 )
 
